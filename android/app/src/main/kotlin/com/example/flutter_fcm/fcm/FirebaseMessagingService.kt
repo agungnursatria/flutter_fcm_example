@@ -11,6 +11,7 @@ import com.example.flutter_fcm.helper.Helper
 import com.example.flutter_fcm.helper.RxBus
 import com.example.flutter_fcm.helper.RxEvent
 import com.example.flutter_fcm.helper.SharePref
+import com.example.flutter_fcm.model.ActivityStatus
 import com.example.flutter_fcm.model.Notification as NotificationModel
 
 
@@ -70,11 +71,16 @@ class FirebaseMessagingService : FirebaseMessagingService() {
 
             d["code"]?.let {
                 if (application is Application){
-                    if ((application as Application).isMainActivityVisible){
+                    Log.d(TAG, "Is Main Activity Exist: ${(application as Application).mainActivityStatus}")
+                    if ((application as Application).mainActivityStatus == ActivityStatus.ACTIVE){
+                        RxBus.publish(RxEvent.EventInitCode(it))
+                    } else if ((application as Application).mainActivityStatus == ActivityStatus.STOP) {
+                        Log.d(TAG, "Start activity on paused: ${d["code"]}")
+                        startActivity(MainActivity.getIntent(context))
                         RxBus.publish(RxEvent.EventInitCode(it))
                     } else {
-                        Log.d(TAG, "Start activity: ${d["code"]}")
-                        startActivity(MainActivity.getIntent(context, it))
+                        Log.d(TAG, "Start activity on Destroyed: ${d["code"]}")
+                        startActivity(MainActivity.getIntentWithCode(context, it))
                     }
                 }
             }

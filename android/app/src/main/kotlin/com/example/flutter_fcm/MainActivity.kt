@@ -7,8 +7,8 @@ import android.util.Log
 import com.example.flutter_fcm.helper.Constant
 import com.example.flutter_fcm.helper.RxBus
 import com.example.flutter_fcm.helper.RxEvent
+import com.example.flutter_fcm.model.ActivityStatus
 import io.flutter.app.FlutterActivity
-import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugins.GeneratedPluginRegistrant
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -19,17 +19,18 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         const val TAG = "MainActivity"
-        fun getIntent(context: Context, code: String?): Intent = Intent(context, MainActivity::class.java).apply {
+
+        fun getIntentWithCode(context: Context, code: String): Intent = getIntent(context).apply {
+            putExtra(Constant.EXTRA_CODE, code)
+        }
+
+        fun getIntent(context: Context): Intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-            code?.let {
-                Log.d(TAG, "CODE onIntent: $it")
-                putExtra(Constant.EXTRA_CODE, it)
-            }
         }
     }
 
-    val disposable = CompositeDisposable()
-    var code: String? = null
+    private val disposable = CompositeDisposable()
+    private var code: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +41,7 @@ class MainActivity : FlutterActivity() {
                         .subscribeOn(Schedulers.newThread())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe {
+                            Log.d(TAG, "Send Code in Rx: ${it.code}")
                             MethodChannel(flutterView, "com.example.flutter_fcm/FCMCodeMethodChannel").invokeMethod("sendCode", it.code)
                         }
         )
@@ -68,28 +70,21 @@ class MainActivity : FlutterActivity() {
     override fun onResume() {
         Log.d(TAG, "Status: onResume")
         if (application is Application) {
-            (application as Application).isMainActivityVisible = true
-        }
-
-        code = intent?.extras?.getString(Constant.EXTRA_CODE, null)
-        code?.let {
-            Log.d(TAG, "Code: $it")
-            MethodChannel(flutterView, "com.example.flutter_fcm/FCMCodeMethodChannel").invokeMethod("sendCode", it)
-            code = null
+            (application as Application).mainActivityStatus = ActivityStatus.ACTIVE
         }
         super.onResume()
     }
 
     override fun onPause() {
         Log.d(TAG, "Status: onPause")
-        if (application is Application) {
-            (application as Application).isMainActivityVisible = false
-        }
         super.onPause()
     }
 
     override fun onStop() {
         Log.d(TAG, "Status: onStop")
+        if (application is Application) {
+            (application as Application).mainActivityStatus = ActivityStatus.STOP
+        }
         super.onStop()
     }
 
@@ -100,7 +95,10 @@ class MainActivity : FlutterActivity() {
 
     override fun onDestroy() {
         Log.d(TAG, "Status: onDestroy")
-        super.onDestroy()
+        if (application is Application) {
+            (application as Application).mainActivityStatus = ActivityStatus.DESTROYED
+        }
         if (!disposable.isDisposed) disposable.dispose()
+        super.onDestroy()
     }
 }

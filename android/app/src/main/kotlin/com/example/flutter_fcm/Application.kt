@@ -3,15 +3,12 @@ package com.example.flutter_fcm
 import android.content.Context
 import androidx.multidex.MultiDex
 import com.example.flutter_fcm.helper.SharePref
+import com.example.flutter_fcm.model.ActivityStatus
 import io.flutter.app.FlutterApplication
 
-
-/**
- * Created by Christian Nababan on 11/09/19
- */
 class Application: FlutterApplication() {
 
-    var isMainActivityVisible = false
+    var mainActivityStatus = ActivityStatus.DESTROYED
 
     override fun attachBaseContext(base: Context?) {
         super.attachBaseContext(base)
